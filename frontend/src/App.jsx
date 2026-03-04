@@ -115,7 +115,7 @@ function Confetti() {
 
 /* ── Home Screen ─────────────────────────────────────────── */
 
-function HomeScreen({ onJoin, onError, error }) {
+function HomeScreen({ onJoin, onError, error, savedSession, onRejoin, onDismissSession }) {
     const [name, setName] = useState('');
     const [roomCode, setRoomCode] = useState('');
     const [mode, setMode] = useState(null); // 'create' | 'join'
@@ -143,6 +143,22 @@ function HomeScreen({ onJoin, onError, error }) {
         <div className="home">
             <div className="home-logo">BINGO</div>
             <p className="home-subtitle">Create a room and invite your friends for a real-time multiplayer Bingo game!</p>
+
+            {savedSession && (
+                <div className="rejoin-banner glass">
+                    <div className="rejoin-banner-text">
+                        <span>🔄</span>
+                        <div>
+                            <strong>Rejoin previous game?</strong>
+                            <p>Room <span className="rejoin-code">{savedSession.roomCode}</span> as <em>{savedSession.playerName}</em></p>
+                        </div>
+                    </div>
+                    <div className="rejoin-banner-actions">
+                        <button className="btn btn-primary" onClick={onRejoin} id="btn-rejoin">Rejoin</button>
+                        <button className="btn btn-outline" onClick={onDismissSession}>Dismiss</button>
+                    </div>
+                </div>
+            )}
 
             <div className="home-card glass">
                 <input
@@ -752,6 +768,8 @@ function WinnerOverlay({ winner, onPlayAgain }) {
 
 export default function App() {
     const [screen, setScreen] = useState('home'); // home | lobby | setup | game | classicGame
+    const screenRef = useRef('home'); // always-current screen value for socket callbacks
+    useEffect(() => { screenRef.current = screen; }, [screen]);
     const [room, setRoom] = useState(null);
     const [playerName, setPlayerName] = useState('');
     const [gameMode, setGameMode] = useState('random');
@@ -763,12 +781,14 @@ export default function App() {
     const [turnPlayerName, setTurnPlayerName] = useState('');
     const [winner, setWinner] = useState(null);
     const [error, setError] = useState('');
+    const [savedSession, setSavedSession] = useState(null);
 
     const handleJoinRoom = (code, name, mode) => {
         setPlayerName(name);
         if (mode) setGameMode(mode);
         setScreen('lobby');
         setError('');
+        localStorage.setItem('bingo_session', JSON.stringify({ roomCode: code, playerName: name }));
     };
 
     const handleError = (msg) => setError(msg);
@@ -778,12 +798,67 @@ export default function App() {
         setScreen('lobby');
     };
 
+    // ── Session persistence ───────────────────────────────────
+    useEffect(() => {
+        const saved = localStorage.getItem('bingo_session');
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                setSavedSession(parsed);
+            } catch {
+                localStorage.removeItem('bingo_session');
+            }
+        }
+    }, []);
+
+    const handleDismissSession = () => {
+        localStorage.removeItem('bingo_session');
+        setSavedSession(null);
+    };
+
+    const handleRejoin = () => {
+        if (!savedSession) return;
+        const { roomCode, playerName } = savedSession;
+        socket.emit('rejoin-room', { roomCode, playerName }, (res) => {
+            if (!res.success) {
+                localStorage.removeItem('bingo_session');
+                setSavedSession(null);
+                setError(res.message);
+                return;
+            }
+            const { room: roomData, board: boardData } = res;
+            setRoom(roomData);
+            setPlayerName(playerName);
+            setGameMode(roomData.mode);
+            setSavedSession(null);
+            if (boardData) setBoard(boardData);
+            if (roomData.status === 'waiting') {
+                setScreen('lobby');
+            } else if (roomData.status === 'playing') {
+                if (roomData.mode === 'classic') {
+                    setCalledNumbers(roomData.calledNumbers || []);
+                    setCurrentNumber(roomData.currentNumber);
+                    const turnPlayer = roomData.players[roomData.turnIndex];
+                    if (turnPlayer) {
+                        setTurnPlayerId(turnPlayer.id);
+                        setTurnPlayerName(turnPlayer.name);
+                    }
+                    setScreen('classicGame');
+                } else {
+                    setDrawnNumbers(roomData.drawnNumbers || []);
+                    setCurrentNumber(roomData.currentNumber);
+                    setScreen('game');
+                }
+            }
+        });
+    };
+
     useEffect(() => {
         socket.on('room-update', (data) => {
             setRoom(data);
             if (data.mode) setGameMode(data.mode);
 
-            if (data.status === 'waiting' && screen !== 'home') {
+            if (data.status === 'waiting' && screenRef.current !== 'home' && screenRef.current !== 'setup') {
                 setScreen('lobby');
                 setBoard(null);
                 setDrawnNumbers([]);
@@ -796,7 +871,7 @@ export default function App() {
                     setScreen('classicGame');
                     setCalledNumbers(data.calledNumbers || []);
                     setCurrentNumber(data.currentNumber);
-                } else if (screen === 'lobby') {
+                } else if (screenRef.current === 'lobby') {
                     setScreen('game');
                     setDrawnNumbers(data.drawnNumbers || []);
                     setCurrentNumber(data.currentNumber);
@@ -838,6 +913,8 @@ export default function App() {
     }, [screen]);
 
     const handlePlayAgain = () => {
+        localStorage.removeItem('bingo_session');
+        setSavedSession(null);
         if (room) {
             socket.emit('play-again', { roomCode: room.code });
         }
@@ -847,7 +924,14 @@ export default function App() {
     return (
         <>
             {screen === 'home' && (
-                <HomeScreen onJoin={handleJoinRoom} onError={handleError} error={error} />
+                <HomeScreen
+                    onJoin={handleJoinRoom}
+                    onError={handleError}
+                    error={error}
+                    savedSession={savedSession}
+                    onRejoin={handleRejoin}
+                    onDismissSession={handleDismissSession}
+                />
             )}
             {screen === 'lobby' && room && (
                 <LobbyScreen room={room} playerName={playerName} onSetupBoard={() => setScreen('setup')} />

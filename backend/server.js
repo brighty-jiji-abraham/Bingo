@@ -179,6 +179,39 @@ io.on('connection', (socket) => {
         console.log(`  ${playerName} joined room ${roomCode}`);
     });
 
+    socket.on('rejoin-room', ({ roomCode, playerName }, callback) => {
+        const room = rooms.get(roomCode);
+        if (!room) return callback({ success: false, message: 'Room no longer exists.' });
+
+        const player = room.players.find(p => p.name === playerName);
+        if (!player) return callback({ success: false, message: 'You are not in this room.' });
+
+        // Swap old socket ID → new one
+        if (room.host === player.id) room.host = socket.id;
+        player.id = socket.id;
+        socket.join(roomCode);
+
+        // Restore board if available
+        if (player.board) {
+            socket.emit('your-board', player.board);
+        }
+
+        // Restore turn state for classic mode
+        if (room.mode === 'classic' && room.status === 'playing') {
+            const turnPlayer = room.players[room.turnIndex];
+            if (turnPlayer) {
+                socket.emit('turn-update', {
+                    turnPlayerId: turnPlayer.id,
+                    turnPlayerName: turnPlayer.name
+                });
+            }
+        }
+
+        callback({ success: true, room: sanitizeRoom(room), board: player.board || null });
+        io.to(roomCode).emit('room-update', sanitizeRoom(room));
+        console.log(`  ${playerName} rejoined room ${roomCode}`);
+    });
+
     socket.on('start-game', ({ roomCode }, callback) => {
         const room = rooms.get(roomCode);
         if (!room) return callback({ success: false, message: 'Room not found.' });
