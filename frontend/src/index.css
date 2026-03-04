@@ -799,7 +799,23 @@ h3 {
 }
 
 /* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .game-header {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 16px;
+    text-align: center;
+  }
+
+  .bingo-area {
+    width: 100%;
+    margin-top: 8px;
+  }
+}
+
 @media (max-width: 520px) {
+
+  /* Headings & Text */
   .home-logo {
     font-size: 3rem;
   }
@@ -808,23 +824,134 @@ h3 {
     font-size: 2rem;
   }
 
+  h2 {
+    font-size: 1.35rem;
+  }
+
+  h3 {
+    font-size: 1rem;
+  }
+
+  /* Cards & Layout */
+  .home {
+    padding: 16px;
+    gap: 20px;
+  }
+
+  .lobby {
+    padding: 16px;
+  }
+
+  .game {
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .board-setup {
+    padding: 16px;
+  }
+
+  .home-card,
+  .lobby-card,
+  .board-setup-card {
+    padding: 24px 20px;
+    gap: 16px;
+  }
+
+  /* Current Number Ball */
+  .current-number-ball {
+    width: 56px;
+    height: 56px;
+    font-size: 1.25rem;
+  }
+
+  /* Board */
+  .board-container {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .board-header-cell {
+    font-size: 1.1rem;
+    padding: 6px 0;
+  }
+
   .board-cell {
     font-size: 1rem;
     border-radius: var(--radius-sm);
   }
 
-  .current-number-ball {
-    width: 56px;
-    height: 56px;
-    font-size: 1.2rem;
+  .board-cell.free {
+    font-size: 0.6rem;
   }
 
+  /* Called History Chips */
+  .drawn-chip {
+    width: 32px;
+    height: 32px;
+    font-size: 0.75rem;
+  }
+
+  /* Classic Num Pad */
+  .num-btn {
+    font-size: 0.95rem;
+    border-radius: var(--radius-sm);
+  }
+
+  .number-pad {
+    gap: 6px;
+  }
+
+  /* Generic Button Tweaks */
+  .btn {
+    padding: 10px 24px;
+    font-size: 0.95rem;
+  }
+
+  .btn-gold {
+    padding: 10px 28px;
+    font-size: 1rem;
+  }
+
+  /* Winner */
   .winner-card {
     padding: 32px 24px;
   }
 
-  .game {
-    padding: 16px;
+  .winner-emoji {
+    font-size: 4rem;
+  }
+
+  .winner-title {
+    font-size: 2rem;
+  }
+}
+
+@media (max-width: 380px) {
+
+  /* Very Small Devices (e.g. iPhone SE) */
+  .home-logo {
+    font-size: 2.5rem;
+  }
+
+  .room-code-display {
+    font-size: 1.3rem;
+    padding: 10px 16px;
+  }
+
+  .board-cell {
+    font-size: 0.85rem;
+  }
+
+  .board-cell.free {
+    font-size: 0.5rem;
+    letter-spacing: 0;
+  }
+
+  .drawn-chip {
+    width: 28px;
+    height: 28px;
+    font-size: 0.7rem;
   }
 }
 

@@ -370,12 +370,35 @@ io.on('connection', (socket) => {
         for (const [code, room] of rooms.entries()) {
             const idx = room.players.findIndex(p => p.id === socket.id);
             if (idx !== -1) {
+                const wasCurrentTurn = room.mode === 'classic' &&
+                    room.status === 'playing' &&
+                    room.players[room.turnIndex] &&
+                    room.players[room.turnIndex].id === socket.id;
+
                 room.players.splice(idx, 1);
+
                 if (room.players.length === 0) {
                     if (room.drawInterval) clearInterval(room.drawInterval);
                     rooms.delete(code);
                 } else {
                     if (room.host === socket.id) room.host = room.players[0].id;
+
+                    // Fix classic mode turn after disconnect
+                    if (room.mode === 'classic' && room.status === 'playing') {
+                        // Clamp turnIndex in case it's now out of bounds
+                        if (room.turnIndex >= room.players.length) {
+                            room.turnIndex = 0;
+                        }
+                        // If it was this player's turn, advance to next and notify
+                        if (wasCurrentTurn) {
+                            io.to(code).emit('turn-update', {
+                                turnPlayerId: room.players[room.turnIndex].id,
+                                turnPlayerName: room.players[room.turnIndex].name
+                            });
+                            console.log(`  Turn advanced after disconnect in room ${code} → ${room.players[room.turnIndex].name}`);
+                        }
+                    }
+
                     io.to(code).emit('room-update', sanitizeRoom(room));
                 }
             }
