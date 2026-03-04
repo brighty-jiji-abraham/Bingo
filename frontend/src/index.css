@@ -546,7 +546,6 @@ h3 {
 
 .board-header {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
   gap: 6px;
   margin-bottom: 6px;
 }
@@ -581,7 +580,6 @@ h3 {
 
 .board-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
   gap: 6px;
 }
 
@@ -816,6 +814,48 @@ h3 {
 .winner-name {
   font-size: 1.3rem;
   color: var(--text-secondary);
+}
+
+/* ── Paused Overlay ──────────────────────────────────────── */
+.paused-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(8px);
+  animation: fadeIn 0.4s ease;
+}
+
+.paused-card {
+  padding: 40px 48px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  background: rgba(17, 24, 39, 0.85);
+  animation: winnerPop 0.4s cubic-bezier(.4, 0, .2, 1);
+}
+
+.paused-icon {
+  font-size: 4rem;
+  animation: pulse 2s infinite ease-in-out;
+}
+
+.paused-title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #fff;
+}
+
+.paused-text {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  max-width: 250px;
 }
 
 /* ── Confetti ────────────────────────────────────────────── */
@@ -1131,7 +1171,6 @@ h3 {
 
 .setup-cell {
   cursor: pointer;
-  min-height: 60px;
 }
 
 .setup-cell.filled {
@@ -1212,7 +1251,6 @@ h3 {
 
 .number-pad {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
   gap: 8px;
 }
 

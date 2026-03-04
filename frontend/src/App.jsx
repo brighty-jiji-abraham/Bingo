@@ -120,11 +120,12 @@ function HomeScreen({ onJoin, onError, error, savedSession, onRejoin, onDismissS
     const [roomCode, setRoomCode] = useState('');
     const [mode, setMode] = useState(null); // 'create' | 'join'
     const [gameMode, setGameMode] = useState('random'); // 'random' | 'classic'
+    const [boardSize, setBoardSize] = useState(5); // 5 to 10
 
     const handleCreate = () => {
         if (!name.trim()) return onError('Enter your name');
         const code = Math.random().toString(36).substring(2, 6).toUpperCase();
-        socket.emit('create-room', { roomCode: code, playerName: name.trim(), mode: gameMode }, (res) => {
+        socket.emit('create-room', { roomCode: code, playerName: name.trim(), mode: gameMode, size: boardSize }, (res) => {
             if (res.success) onJoin(code, name.trim(), gameMode);
             else onError(res.message);
         });
@@ -189,10 +190,23 @@ function HomeScreen({ onJoin, onError, error, savedSession, onRejoin, onDismissS
                                 ✏️ Classic
                             </button>
                         </div>
+                        <div className="size-selector" style={{ marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                            <label style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Size:</label>
+                            <select
+                                value={boardSize}
+                                onChange={e => setBoardSize(Number(e.target.value))}
+                                className="input"
+                                style={{ padding: '6px 12px', width: 'auto', textAlign: 'center', color: 'black' }}
+                            >
+                                {[5, 6, 7, 8, 9, 10].map(s => (
+                                    <option key={s} value={s}>{s} × {s}</option>
+                                ))}
+                            </select>
+                        </div>
                         <p className="mode-description">
                             {gameMode === 'random'
                                 ? 'Auto-generated boards with numbers drawn every 4 seconds.'
-                                : 'Place numbers 1–25 on your board. Take turns calling numbers.'}
+                                : `Place numbers 1–${boardSize * boardSize} on your board. Take turns calling numbers.`}
                         </p>
                         <button className="btn btn-primary" onClick={() => setMode('create')} id="btn-create-mode">
                             🎲 Create Room
@@ -333,14 +347,16 @@ function LobbyScreen({ room, playerName, onSetupBoard }) {
 /* ── Board Setup Screen (Classic Mode) ───────────────────── */
 
 function BoardSetupScreen({ room, onBoardReady }) {
-    const [board, setBoard] = useState(Array.from({ length: 5 }, () => Array(5).fill(null)));
+    const size = room.size || 5;
+    const maxNumber = size * size;
+    const [board, setBoard] = useState(Array.from({ length: size }, () => Array(size).fill(null)));
     const [nextNumber, setNextNumber] = useState(1);
     const [submitted, setSubmitted] = useState(false);
     const [error, setError] = useState('');
 
     const handleCellClick = (r, c) => {
         if (submitted) return;
-        if (nextNumber > 25) return;
+        if (nextNumber > maxNumber) return;
 
         setBoard(prev => {
             const next = prev.map(row => [...row]);
@@ -352,7 +368,7 @@ function BoardSetupScreen({ room, onBoardReady }) {
     };
 
     const handleClear = () => {
-        setBoard(Array.from({ length: 5 }, () => Array(5).fill(null)));
+        setBoard(Array.from({ length: size }, () => Array(size).fill(null)));
         setNextNumber(1);
         setError('');
     };
@@ -360,7 +376,7 @@ function BoardSetupScreen({ room, onBoardReady }) {
     const handleSubmit = () => {
         const allFilled = board.every(row => row.every(cell => cell !== null));
         if (!allFilled) {
-            setError('Place all 25 numbers on the board first!');
+            setError(`Place all ${maxNumber} numbers on the board first!`);
             return;
         }
         socket.emit('set-board', { roomCode: room.code, board }, (res) => {
@@ -379,12 +395,12 @@ function BoardSetupScreen({ room, onBoardReady }) {
             <div className="board-setup-card glass">
                 <h2>Set Up Your Board</h2>
                 <p className="setup-instruction">
-                    Click cells to place numbers 1–25 in your preferred order.
+                    Click cells to place numbers 1–{maxNumber} in your preferred order.
                 </p>
 
                 {!submitted && (
                     <div className="setup-progress">
-                        {nextNumber <= 25 ? (
+                        {nextNumber <= maxNumber ? (
                             <span>Placing: <strong className="next-number-badge">{nextNumber}</strong></span>
                         ) : (
                             <span className="setup-complete-text">✓ All numbers placed!</span>
@@ -392,7 +408,7 @@ function BoardSetupScreen({ room, onBoardReady }) {
                     </div>
                 )}
 
-                <div className="board-grid">
+                <div className="board-grid" style={{ gridTemplateColumns: `repeat(${size}, 1fr)` }}>
                     {board.map((row, r) =>
                         row.map((val, c) => (
                             <div
@@ -400,6 +416,7 @@ function BoardSetupScreen({ room, onBoardReady }) {
                                 className={`board-cell setup-cell${val !== null ? ' filled' : ''}${submitted ? ' locked' : ''}`}
                                 onClick={() => handleCellClick(r, c)}
                                 id={`setup-cell-${r}-${c}`}
+                                style={{ fontSize: size >= 8 ? '0.85rem' : size >= 6 ? '1rem' : undefined }}
                             >
                                 {val !== null ? val : ''}
                             </div>
@@ -413,7 +430,7 @@ function BoardSetupScreen({ room, onBoardReady }) {
                         <button
                             className="btn btn-success"
                             onClick={handleSubmit}
-                            disabled={nextNumber <= 25}
+                            disabled={nextNumber <= maxNumber}
                         >
                             ✅ Ready
                         </button>
@@ -502,12 +519,12 @@ function GameScreen({ room, board, drawnNumbers, currentNumber }) {
             </div>
 
             <div className="board-container">
-                <div className="board-header">
-                    {LETTERS.map(l => (
-                        <div key={l} className="board-header-cell">{l}</div>
+                <div className="board-header" style={{ gridTemplateColumns: `repeat(${board.length}, 1fr)` }}>
+                    {Array.from({ length: board.length }).map((_, i) => (
+                        <div key={i} className="board-header-cell" style={{ fontSize: board.length >= 8 ? '0.85rem' : board.length >= 6 ? '1.1rem' : undefined }}>{i < 5 ? LETTERS[i] : '*'}</div>
                     ))}
                 </div>
-                <div className="board-grid">
+                <div className="board-grid" style={{ gridTemplateColumns: `repeat(${board.length}, 1fr)` }}>
                     {board.map((row, r) =>
                         row.map((val, c) => {
                             const isFree = val === 'FREE';
@@ -519,6 +536,7 @@ function GameScreen({ room, board, drawnNumbers, currentNumber }) {
                                     className={`board-cell${isFree ? ' free' : ''}${isMarked && !isFree ? ' marked' : ''}${isDrawn && !isMarked && !isFree ? ' callable' : ''}`}
                                     onClick={() => handleMark(r, c)}
                                     id={`cell-${r}-${c}`}
+                                    style={{ fontSize: board.length >= 8 ? '0.85rem' : board.length >= 6 ? '1rem' : undefined }}
                                 >
                                     {isFree ? 'FREE' : val}
                                 </div>
@@ -617,31 +635,32 @@ function ClassicGameScreen({ room, board, calledNumbers, currentNumber, turnPlay
             {(() => {
                 const completedLines = [];
                 const isMarked = (val) => calledSet.has(val);
+                const size = board.length;
 
                 // Check rows
-                for (let r = 0; r < 5; r++) {
+                for (let r = 0; r < size; r++) {
                     if (board[r].every(isMarked)) completedLines.push({ type: 'row', index: r });
                 }
                 // Check columns
-                for (let c = 0; c < 5; c++) {
+                for (let c = 0; c < size; c++) {
                     let complete = true;
-                    for (let r = 0; r < 5; r++) {
+                    for (let r = 0; r < size; r++) {
                         if (!isMarked(board[r][c])) { complete = false; break; }
                     }
                     if (complete) completedLines.push({ type: 'col', index: c });
                 }
                 // Check diagonals
                 let d1 = true, d2 = true;
-                for (let i = 0; i < 5; i++) {
+                for (let i = 0; i < size; i++) {
                     if (!isMarked(board[i][i])) d1 = false;
-                    if (!isMarked(board[i][4 - i])) d2 = false;
+                    if (!isMarked(board[i][size - 1 - i])) d2 = false;
                 }
                 if (d1) completedLines.push({ type: 'diag', index: 0 });
                 if (d2) completedLines.push({ type: 'diag', index: 1 });
 
-                // SVG line coordinates (percentage-based for the 5x5 grid)
-                // Each cell occupies ~20% of width/height, centers at 10%, 30%, 50%, 70%, 90%
-                const cellCenter = (i) => 10 + i * 20;
+                // SVG line coordinates (percentage-based)
+                const step = 100 / size;
+                const cellCenter = (i) => (step / 2) + i * step;
 
                 const getLineCoords = (line) => {
                     if (line.type === 'row') {
@@ -667,7 +686,7 @@ function ClassicGameScreen({ room, board, calledNumbers, currentNumber, turnPlay
                 return (
                     <div className="board-container">
                         <div className="board-grid-wrapper">
-                            <div className="board-grid">
+                            <div className="board-grid" style={{ gridTemplateColumns: `repeat(${size}, 1fr)` }}>
                                 {board.map((row, r) =>
                                     row.map((val, c) => {
                                         const isCalled = calledSet.has(val);
@@ -676,6 +695,7 @@ function ClassicGameScreen({ room, board, calledNumbers, currentNumber, turnPlay
                                                 key={`${r}-${c}`}
                                                 className={`board-cell${isCalled ? ' marked' : ''}`}
                                                 id={`classic-cell-${r}-${c}`}
+                                                style={{ fontSize: size >= 8 ? '0.85rem' : size >= 6 ? '1rem' : undefined }}
                                             >
                                                 {val}
                                             </div>
@@ -712,14 +732,15 @@ function ClassicGameScreen({ room, board, calledNumbers, currentNumber, turnPlay
             {/* Number pad for calling */}
             <div className="number-pad-section">
                 <h3>Call a Number</h3>
-                <div className="number-pad">
-                    {Array.from({ length: 25 }, (_, i) => i + 1).map(num => (
+                <div className="number-pad" style={{ gridTemplateColumns: `repeat(${board.length}, 1fr)` }}>
+                    {Array.from({ length: board.length * board.length }, (_, i) => i + 1).map(num => (
                         <button
                             key={num}
                             className={`num-btn${calledSet.has(num) ? ' called' : ''}${!isMyTurn ? ' disabled' : ''}`}
                             onClick={() => handleCallNumber(num)}
                             disabled={calledSet.has(num) || !isMyTurn}
                             id={`num-btn-${num}`}
+                            style={{ fontSize: board.length >= 8 ? '0.75rem' : board.length >= 6 ? '0.9rem' : undefined }}
                         >
                             {num}
                         </button>
@@ -759,6 +780,20 @@ function WinnerOverlay({ winner, onPlayAgain }) {
                 <button className="btn btn-primary" onClick={onPlayAgain} id="btn-play-again">
                     🔄 Play Again
                 </button>
+            </div>
+        </div>
+    );
+}
+
+/* ── Paused Overlay ──────────────────────────────────────── */
+
+function PausedOverlay() {
+    return (
+        <div className="paused-overlay">
+            <div className="paused-card glass">
+                <div className="paused-icon">⏸️</div>
+                <div className="paused-title">Game Paused</div>
+                <div className="paused-text">Waiting for a player to reconnect...</div>
             </div>
         </div>
     );
@@ -834,7 +869,7 @@ export default function App() {
             if (boardData) setBoard(boardData);
             if (roomData.status === 'waiting') {
                 setScreen('lobby');
-            } else if (roomData.status === 'playing') {
+            } else if (roomData.status === 'playing' || roomData.status === 'paused') {
                 if (roomData.mode === 'classic') {
                     setCalledNumbers(roomData.calledNumbers || []);
                     setCurrentNumber(roomData.currentNumber);
@@ -866,7 +901,7 @@ export default function App() {
                 setCalledNumbers([]);
                 setWinner(null);
             }
-            if (data.status === 'playing') {
+            if (data.status === 'playing' || data.status === 'paused') {
                 if (data.mode === 'classic') {
                     setScreen('classicGame');
                     setCalledNumbers(data.calledNumbers || []);
@@ -956,6 +991,9 @@ export default function App() {
                     turnPlayerId={turnPlayerId}
                     turnPlayerName={turnPlayerName}
                 />
+            )}
+            {room && room.status === 'paused' && (
+                <PausedOverlay />
             )}
             {winner && (
                 <WinnerOverlay winner={winner} onPlayAgain={handlePlayAgain} />
