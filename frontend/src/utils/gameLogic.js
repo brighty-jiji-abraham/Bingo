@@ -12,11 +12,9 @@ export function getAvatarColor(name) {
 }
 
 export function getLetterForNumber(num) {
-    if (num <= 15) return 'B';
-    if (num <= 30) return 'I';
-    if (num <= 45) return 'N';
-    if (num <= 60) return 'G';
-    return 'O';
+    const letters = 'BINGOABCDEFGH';
+    const index = Math.floor((num - 1) / 15);
+    return letters[index] || '*';
 }
 
 export function checkWin(board, markedCells) {

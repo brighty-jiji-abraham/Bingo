@@ -408,7 +408,7 @@ function scheduleRoomCleanup(code) {
         const r = rooms.get(code);
         if (!r) return;
 
-        // Remove all disconnected players
+        // At the end of the 60s window, if players are still disconnected, we remove them
         const disconnected = r.players.filter(p => !p.connected);
         disconnected.forEach(p => {
             const idx = r.players.indexOf(p);
@@ -418,12 +418,12 @@ function scheduleRoomCleanup(code) {
         });
 
         if (r.players.length === 0) {
-            // Everyone's gone — delete the room
+            // Everyone's gone — delete the room completely
             if (r.drawInterval) clearInterval(r.drawInterval);
             rooms.delete(code);
             console.log(`  Room ${code} deleted after timeout (no players)`);
         } else {
-            // Ensure host is still a current player
+            // Ensure host is still a current connected player
             const hostStillPresent = r.players.some(p => p.id === r.host);
             if (!hostStillPresent) {
                 const nextHost = r.players.find(p => p.connected) || r.players[0];
@@ -431,7 +431,7 @@ function scheduleRoomCleanup(code) {
                 console.log(`  Host transferred to ${nextHost.name} in room ${code}`);
             }
             io.to(code).emit('room-update', sanitizeRoom(r));
-            console.log(`  Removed ${disconnected.length} disconnected player(s) from room ${code}`);
+            console.log(`  Removed ${disconnected.length} permanently disconnected player(s) from room ${code}`);
         }
     }, ROOM_CLEANUP_DELAY);
     console.log(`  Room ${code} scheduled for cleanup in 60s`);

@@ -108,13 +108,18 @@ export default function App() {
             setRoom(data);
             if (data.mode) setGameMode(data.mode);
 
-            if (data.status === 'waiting' && screenRef.current !== 'home' && screenRef.current !== 'setup') {
-                setScreen('lobby');
-                setBoard(null);
-                setDrawnNumbers([]);
-                setCurrentNumber(null);
-                setCalledNumbers([]);
-                setWinner(null);
+            // Handle transition states
+            if (data.status === 'waiting') {
+                // If we're not currently on home/setup and suddenly room is waiting,
+                // we should be in lobby (e.g., coming from a game end or rejoin)
+                if (screenRef.current !== 'home' && screenRef.current !== 'setup' && screenRef.current !== 'lobby') {
+                    setScreen('lobby');
+                    setBoard(null);
+                    setDrawnNumbers([]);
+                    setCurrentNumber(null);
+                    setCalledNumbers([]);
+                    setWinner(null);
+                }
             }
             if (data.status === 'playing' || data.status === 'paused') {
                 if (data.mode === 'classic') {
