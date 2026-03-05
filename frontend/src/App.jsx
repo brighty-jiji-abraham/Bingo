@@ -319,7 +319,7 @@ function LobbyScreen({ room, playerName, onSetupBoard }) {
                 <h2>Game Lobby</h2>
                 <div className="room-code-display" id="room-code">{room.code}</div>
                 <div className="mode-badge-display">
-                    Mode: <span className="mode-badge">{room.mode === 'classic' ? '✏️ Classic' : '🎲 Random'}</span>
+                    Mode: <span className="mode-badge">{room.mode === 'classic' ? <><i className="fa-solid fa-pencil"></i> Classic</> : <><i className="fa-solid fa-dice"></i> Random</>}</span>
                 </div>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
                     Share this code with friends to join
@@ -352,14 +352,14 @@ function LobbyScreen({ room, playerName, onSetupBoard }) {
                                                 onClick={() => handleKick(p.name)}
                                                 title={`Remove ${p.name}`}
                                             >
-                                                🗑️ Remove
+                                                <i className="fa-solid fa-trash"></i> Remove
                                             </button>
                                         )}
                                     </>
                                 )}
                                 {p.connected && room.mode === 'classic' && (
                                     <span className={`ready-badge ${p.boardReady ? 'ready' : 'not-ready'}`}>
-                                        {p.boardReady ? '✓ Ready' : '✗ Setting up'}
+                                        {p.boardReady ? <><i className="fa-solid fa-check"></i> Ready</> : <><i className="fa-solid fa-xmark"></i> Setting up</>}
                                     </span>
                                 )}
                             </li>
@@ -374,13 +374,14 @@ function LobbyScreen({ room, playerName, onSetupBoard }) {
                         onClick={onSetupBoard}
                         id="btn-setup-board"
                     >
-                        ✏️ Set Up Your Board
+                        <i className="fa-solid fa-table-cells"></i> Set Up Your Board
                     </button>
                 )}
 
                 {room.mode === 'classic' && me && me.boardReady && (
                     <div className="setup-submitted">
-                        ✅ Your board is ready!
+                        <i className="fa-solid fa-circle-check" style={{ color: 'var(--success)', marginRight: '8px' }}></i>
+                        Your board is ready!
                     </div>
                 )}
 
@@ -395,7 +396,7 @@ function LobbyScreen({ room, playerName, onSetupBoard }) {
                             ? 'Waiting for players…'
                             : room.mode === 'classic' && !allReady
                                 ? 'Waiting for boards…'
-                                : '🎮 Start Game'}
+                                : <><i className="fa-solid fa-gamepad"></i> Start Game</>}
                     </button>
                 ) : (
                     <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
@@ -529,21 +530,22 @@ function BoardSetupScreen({ room, onBoardReady }) {
 
                 {!submitted && (
                     <div className="setup-actions">
-                        <button className="btn btn-outline" onClick={handleClear}>🗑️ Clear</button>
-                        <button className="btn btn-outline" onClick={handleUndo} disabled={nextNumber <= 1}>↩️ Undo</button>
+                        <button className="btn btn-outline" onClick={handleClear}><i className="fa-solid fa-trash"></i> Clear</button>
+                        <button className="btn btn-outline" onClick={handleUndo} disabled={nextNumber <= 1}><i className="fa-solid fa-rotate-left"></i> Undo</button>
                         <button
                             className="btn btn-success"
                             onClick={handleSubmit}
                             disabled={nextNumber <= maxNumber}
                         >
-                            ✅ Ready
+                            <i className="fa-solid fa-check"></i> Ready
                         </button>
                     </div>
                 )}
 
                 {submitted && (
                     <div className="setup-submitted">
-                        ✅ Board submitted! Waiting for other players…<span className="waiting-dots"></span>
+                        <i className="fa-solid fa-circle-check" style={{ color: 'var(--success)', marginRight: '8px' }}></i>
+                        Board submitted! Waiting for other players…<span className="waiting-dots"></span>
                     </div>
                 )}
 
@@ -707,8 +709,8 @@ function ClassicGameScreen({ room, board, calledNumbers, currentNumber, turnPlay
             {/* Turn indicator */}
             <div className={`turn-banner ${isMyTurn ? 'my-turn' : ''}`}>
                 {isMyTurn
-                    ? "🎯 Your turn! Tap a number on your board to call it."
-                    : `⏳ ${turnPlayerName}'s turn to call…`}
+                    ? <><i className="fa-solid fa-bullseye"></i> Your turn! Tap a number on your board to call it.</>
+                    : <><i className="fa-solid fa-hourglass-half"></i> {turnPlayerName}'s turn to call…</>}
             </div>
 
             <div className="game-header">
@@ -864,11 +866,11 @@ function WinnerOverlay({ winner, onPlayAgain }) {
         <div className="winner-overlay">
             <Confetti />
             <div className="winner-card glass">
-                <div className="winner-emoji">🏆</div>
+                <div className="winner-emoji"><i className="fa-solid fa-trophy"></i></div>
                 <div className="winner-title">BINGO!</div>
                 <div className="winner-name">{winner} wins the game!</div>
                 <button className="btn btn-primary" onClick={onPlayAgain} id="btn-play-again">
-                    🔄 Play Again
+                    <i className="fa-solid fa-rotate-right"></i> Play Again
                 </button>
             </div>
         </div>
@@ -881,7 +883,7 @@ function PausedOverlay() {
     return (
         <div className="paused-overlay">
             <div className="paused-card glass">
-                <div className="paused-icon">⏸️</div>
+                <div className="paused-icon"><i className="fa-solid fa-pause"></i></div>
                 <div className="paused-title">Game Paused</div>
                 <div className="paused-text">Waiting for a player to reconnect...</div>
             </div>
