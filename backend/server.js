@@ -20,123 +20,10 @@ const io = new Server(server, {
 
 // ─── Game State ──────────────────────────────────────────────
 const rooms = new Map();
+const ROOM_CLEANUP_DELAY = 60 * 1000; // 1 minute before deleting empty rooms
 
-// ─── Helpers ─────────────────────────────────────────────────
-
-function generateBoard(size) {
-    const board = [];
-    for (let col = 0; col < size; col++) {
-        const min = col * 15 + 1;
-        const max = (col + 1) * 15;
-        const pool = [];
-        for (let n = min; n <= max; n++) pool.push(n);
-        // Fisher-Yates shuffle
-        for (let i = pool.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [pool[i], pool[j]] = [pool[j], pool[i]];
-        }
-        board.push(pool.slice(0, size));
-    }
-    // Transpose so board[row][col]
-    const transposed = [];
-    for (let r = 0; r < size; r++) {
-        transposed.push([]);
-        for (let c = 0; c < size; c++) {
-            transposed[r].push(board[c][r]);
-        }
-    }
-    // Center is FREE only on odd sizes
-    if (size % 2 !== 0) {
-        const center = Math.floor(size / 2);
-        transposed[center][center] = 'FREE';
-    }
-    return transposed;
-}
-
-function generateNumberPool(size) {
-    const pool = [];
-    const maxNum = size * 15;
-    for (let i = 1; i <= maxNum; i++) pool.push(i);
-    for (let i = pool.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [pool[i], pool[j]] = [pool[j], pool[i]];
-    }
-    return pool;
-}
-
-function getLetterForNumber(num) {
-    const letters = 'BINGOABCDEFGH';
-    const index = Math.floor((num - 1) / 15);
-    return letters[index] || '*';
-}
-
-function checkWin(board, marked) {
-    const size = board.length;
-    let completedLines = 0;
-
-    // Check rows
-    for (let r = 0; r < size; r++) {
-        let win = true;
-        for (let c = 0; c < size; c++) {
-            if (board[r][c] !== 'FREE' && !marked.includes(board[r][c])) {
-                win = false; break;
-            }
-        }
-        if (win) completedLines++;
-    }
-    // Check columns
-    for (let c = 0; c < size; c++) {
-        let win = true;
-        for (let r = 0; r < size; r++) {
-            if (board[r][c] !== 'FREE' && !marked.includes(board[r][c])) {
-                win = false; break;
-            }
-        }
-        if (win) completedLines++;
-    }
-    // Check diagonals
-    let win1 = true, win2 = true;
-    for (let i = 0; i < size; i++) {
-        if (board[i][i] !== 'FREE' && !marked.includes(board[i][i])) win1 = false;
-        if (board[i][size - 1 - i] !== 'FREE' && !marked.includes(board[i][size - 1 - i])) win2 = false;
-    }
-    if (win1) completedLines++;
-    if (win2) completedLines++;
-
-    return completedLines >= 5;
-}
-
-function checkWinClassic(board, calledNumbers) {
-    const calledSet = new Set(calledNumbers);
-    const isMarked = (val) => calledSet.has(val);
-
-    let completedLines = 0;
-    const size = board.length;
-
-    // Count completed rows
-    for (let r = 0; r < size; r++) {
-        if (board[r].every(isMarked)) completedLines++;
-    }
-    // Count completed columns
-    for (let c = 0; c < size; c++) {
-        let complete = true;
-        for (let r = 0; r < size; r++) {
-            if (!isMarked(board[r][c])) { complete = false; break; }
-        }
-        if (complete) completedLines++;
-    }
-    // Count completed diagonals
-    let d1 = true, d2 = true;
-    for (let i = 0; i < size; i++) {
-        if (!isMarked(board[i][i])) d1 = false;
-        if (!isMarked(board[i][size - 1 - i])) d2 = false;
-    }
-    if (d1) completedLines++;
-    if (d2) completedLines++;
-
-    // Win if total completed lines >= 5
-    return completedLines >= 5;
-}
+// ─── Game Logic ──────────────────────────────────────────────
+const { generateBoard, generateNumberPool, getLetterForNumber, checkWin, checkWinClassic } = require('./gameLogic');
 
 function startDrawInterval(room, roomCode) {
     if (room.drawInterval) clearInterval(room.drawInterval);
@@ -215,13 +102,20 @@ io.on('connection', (socket) => {
         player.connected = true;
         socket.join(roomCode);
 
+        // Cancel any pending room cleanup
+        if (room.cleanupTimer) {
+            clearTimeout(room.cleanupTimer);
+            room.cleanupTimer = null;
+            console.log(`  Cleanup cancelled for room ${roomCode}`);
+        }
+
         // Restore board if available
         if (player.board) {
             socket.emit('your-board', player.board);
         }
 
         // Restore turn state for classic mode
-        if (room.mode === 'classic' && room.status === 'playing') {
+        if (room.mode === 'classic' && (room.status === 'playing' || room.status === 'paused')) {
             const turnPlayer = room.players[room.turnIndex];
             if (turnPlayer) {
                 socket.emit('turn-update', {
@@ -241,10 +135,26 @@ io.on('connection', (socket) => {
                 if (room.mode === 'random') {
                     startDrawInterval(room, roomCode);
                 }
+
+                // Re-broadcast turn for classic mode
+                if (room.mode === 'classic') {
+                    const turnPlayer = room.players[room.turnIndex];
+                    if (turnPlayer) {
+                        io.to(roomCode).emit('turn-update', {
+                            turnPlayerId: turnPlayer.id,
+                            turnPlayerName: turnPlayer.name
+                        });
+                    }
+                }
             }
         }
 
-        callback({ success: true, room: sanitizeRoom(room), board: player.board || null });
+        callback({
+            success: true,
+            room: sanitizeRoom(room),
+            board: player.board || null,
+            marked: player.marked || []
+        });
         io.to(roomCode).emit('room-update', sanitizeRoom(room));
         console.log(`  ${playerName} rejoined room ${roomCode}`);
     });
@@ -330,7 +240,7 @@ io.on('connection', (socket) => {
         if (allNums.length !== targetLen) return callback({ success: false, message: `Board must have ${targetLen} cells.` });
         const numSet = new Set(allNums);
         if (numSet.size !== targetLen) return callback({ success: false, message: 'All numbers must be unique.' });
-        const maxNum = room.size * 15;
+        const maxNum = room.size * room.size;
         for (const n of allNums) {
             if (typeof n !== 'number' || n < 1 || n > maxNum) {
                 return callback({ success: false, message: `Numbers must be 1-${maxNum}.` });
@@ -357,7 +267,7 @@ io.on('connection', (socket) => {
         }
 
         // Validate number
-        const maxNum = room.size * 15;
+        const maxNum = room.size * room.size;
         if (typeof number !== 'number' || number < 1 || number > maxNum) {
             return callback({ success: false, message: 'Invalid number.' });
         }
@@ -424,6 +334,38 @@ io.on('connection', (socket) => {
         io.to(roomCode).emit('room-update', sanitizeRoom(room));
     });
 
+    socket.on('kick-player', ({ roomCode, playerName }, callback) => {
+        const room = rooms.get(roomCode);
+        if (!room) return callback({ success: false, message: 'Room not found.' });
+        if (room.host !== socket.id) return callback({ success: false, message: 'Only the host can remove players.' });
+        if (room.status !== 'waiting') return callback({ success: false, message: 'Can only remove players in the lobby.' });
+
+        const idx = room.players.findIndex(p => p.name === playerName);
+        if (idx === -1) return callback({ success: false, message: 'Player not found.' });
+        const player = room.players[idx];
+        if (player.connected) return callback({ success: false, message: 'Can only remove disconnected players.' });
+
+        // Notify the kicked player's socket to clear their session (if they reconnect)
+        io.to(player.id).emit('force-kicked', { roomCode });
+
+        room.players.splice(idx, 1);
+
+        // If room is now empty, schedule cleanup
+        if (room.players.length === 0) {
+            scheduleRoomCleanup(roomCode);
+        } else {
+            // Transfer host if needed
+            if (room.host === player.id) {
+                const nextHost = room.players.find(p => p.connected);
+                room.host = nextHost ? nextHost.id : room.players[0].id;
+            }
+            io.to(roomCode).emit('room-update', sanitizeRoom(room));
+        }
+
+        callback({ success: true });
+        console.log(`  Host kicked ${playerName} from room ${roomCode}`);
+    });
+
     socket.on('disconnect', () => {
         console.log(`Player disconnected: ${socket.id}`);
         for (const [code, room] of rooms.entries()) {
@@ -431,37 +373,69 @@ io.on('connection', (socket) => {
             if (player) {
                 player.connected = false;
 
-                if (room.status === 'waiting') {
-                    // Safe to remove completely if game hasn't started
-                    const idx = room.players.findIndex(p => p.id === socket.id);
-                    room.players.splice(idx, 1);
-
-                    if (room.players.length === 0) {
-                        rooms.delete(code);
-                    } else {
-                        if (room.host === socket.id) room.host = room.players[0].id;
-                        io.to(code).emit('room-update', sanitizeRoom(room));
-                    }
-                } else if (room.status === 'playing' || room.status === 'paused') {
+                if (room.status === 'playing' || room.status === 'paused') {
                     // Pause the active game
                     room.status = 'paused';
                     if (room.drawInterval) {
                         clearInterval(room.drawInterval);
                         room.drawInterval = null;
                     }
+                }
 
-                    const anyConnected = room.players.some(p => p.connected);
-                    if (!anyConnected) {
-                        // Everyone left, clean up the room
-                        rooms.delete(code);
-                    } else {
-                        io.to(code).emit('room-update', sanitizeRoom(room));
+                const anyConnected = room.players.some(p => p.connected);
+                if (!anyConnected) {
+                    // Everyone disconnected — schedule cleanup after 1 min
+                    scheduleRoomCleanup(code);
+                } else {
+                    // Update the remaining players with new state
+                    if (room.status === 'waiting' && room.host === socket.id) {
+                        // Reassign host to next connected player
+                        const nextHost = room.players.find(p => p.connected);
+                        if (nextHost) room.host = nextHost.id;
                     }
+                    io.to(code).emit('room-update', sanitizeRoom(room));
                 }
             }
         }
     });
 });
+
+function scheduleRoomCleanup(code) {
+    const room = rooms.get(code);
+    if (!room) return;
+    if (room.cleanupTimer) clearTimeout(room.cleanupTimer);
+    room.cleanupTimer = setTimeout(() => {
+        const r = rooms.get(code);
+        if (!r) return;
+
+        // Remove all disconnected players
+        const disconnected = r.players.filter(p => !p.connected);
+        disconnected.forEach(p => {
+            const idx = r.players.indexOf(p);
+            if (idx !== -1) r.players.splice(idx, 1);
+            // Invalidate their session
+            io.to(p.id).emit('force-kicked', { roomCode: code });
+        });
+
+        if (r.players.length === 0) {
+            // Everyone's gone — delete the room
+            if (r.drawInterval) clearInterval(r.drawInterval);
+            rooms.delete(code);
+            console.log(`  Room ${code} deleted after timeout (no players)`);
+        } else {
+            // Ensure host is still a current player
+            const hostStillPresent = r.players.some(p => p.id === r.host);
+            if (!hostStillPresent) {
+                const nextHost = r.players.find(p => p.connected) || r.players[0];
+                r.host = nextHost.id;
+                console.log(`  Host transferred to ${nextHost.name} in room ${code}`);
+            }
+            io.to(code).emit('room-update', sanitizeRoom(r));
+            console.log(`  Removed ${disconnected.length} disconnected player(s) from room ${code}`);
+        }
+    }, ROOM_CLEANUP_DELAY);
+    console.log(`  Room ${code} scheduled for cleanup in 60s`);
+}
 
 function sanitizeRoom(room) {
     return {

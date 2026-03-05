@@ -27,48 +27,58 @@ function getLetterForNumber(num) {
 }
 
 function checkWin(board, markedCells) {
+    const size = board.length;
     const isMarked = (val) => val === 'FREE' || markedCells.has(val);
-    for (let r = 0; r < 5; r++) {
-        if (board[r].every(isMarked)) return true;
+    let completedLines = 0;
+
+    // Check rows
+    for (let r = 0; r < size; r++) {
+        if (board[r].every(isMarked)) completedLines++;
     }
-    for (let c = 0; c < 5; c++) {
+    // Check columns
+    for (let c = 0; c < size; c++) {
         let win = true;
-        for (let r = 0; r < 5; r++) {
+        for (let r = 0; r < size; r++) {
             if (!isMarked(board[r][c])) { win = false; break; }
         }
-        if (win) return true;
+        if (win) completedLines++;
     }
+    // Check diagonals
     let d1 = true, d2 = true;
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < size; i++) {
         if (!isMarked(board[i][i])) d1 = false;
-        if (!isMarked(board[i][4 - i])) d2 = false;
+        if (!isMarked(board[i][size - 1 - i])) d2 = false;
     }
-    return d1 || d2;
+    if (d1) completedLines++;
+    if (d2) completedLines++;
+
+    return completedLines >= 5;
 }
 
 function checkWinClassic(board, calledNumbers) {
     const calledSet = new Set(calledNumbers);
     const isMarked = (val) => calledSet.has(val);
+    const size = board.length;
 
     let completedLines = 0;
 
     // Count completed rows
-    for (let r = 0; r < 5; r++) {
+    for (let r = 0; r < size; r++) {
         if (board[r].every(isMarked)) completedLines++;
     }
     // Count completed columns
-    for (let c = 0; c < 5; c++) {
+    for (let c = 0; c < size; c++) {
         let complete = true;
-        for (let r = 0; r < 5; r++) {
+        for (let r = 0; r < size; r++) {
             if (!isMarked(board[r][c])) { complete = false; break; }
         }
         if (complete) completedLines++;
     }
     // Count completed diagonals
     let d1 = true, d2 = true;
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < size; i++) {
         if (!isMarked(board[i][i])) d1 = false;
-        if (!isMarked(board[i][4 - i])) d2 = false;
+        if (!isMarked(board[i][size - 1 - i])) d2 = false;
     }
     if (d1) completedLines++;
     if (d2) completedLines++;
@@ -148,7 +158,7 @@ function HomeScreen({ onJoin, onError, error, savedSession, onRejoin, onDismissS
             {savedSession && (
                 <div className="rejoin-banner glass">
                     <div className="rejoin-banner-text">
-                        <span>🔄</span>
+                        <i className="fa-solid fa-rotate"></i>
                         <div>
                             <strong>Rejoin previous game?</strong>
                             <p>Room <span className="rejoin-code">{savedSession.roomCode}</span> as <em>{savedSession.playerName}</em></p>
@@ -162,88 +172,115 @@ function HomeScreen({ onJoin, onError, error, savedSession, onRejoin, onDismissS
             )}
 
             <div className="home-card glass">
-                <input
-                    className="input"
-                    placeholder="Your name"
-                    value={name}
-                    onChange={e => setName(e.target.value)}
-                    maxLength={20}
-                    id="input-name"
-                />
+                <div className="input-group">
+                    <span className="input-icon"><i className="fa-solid fa-user"></i></span>
+                    <input
+                        className="input input-with-icon"
+                        placeholder="Your name"
+                        value={name}
+                        onChange={e => setName(e.target.value)}
+                        maxLength={20}
+                        id="input-name"
+                    />
+                </div>
 
                 {!mode && (
                     <>
-                        {/* Mode selector */}
-                        <div className="mode-selector">
-                            <button
-                                className={`mode-btn ${gameMode === 'random' ? 'active' : ''}`}
+                        {/* Mode Cards */}
+                        <div className="mode-cards">
+                            <div
+                                className={`mode-card ${gameMode === 'random' ? 'active' : ''}`}
                                 onClick={() => setGameMode('random')}
                                 id="btn-mode-random"
                             >
-                                🎲 Random
-                            </button>
-                            <button
-                                className={`mode-btn ${gameMode === 'classic' ? 'active' : ''}`}
+                                <div className="mode-card-icon"><i className="fa-solid fa-dice"></i></div>
+                                <div className="mode-card-content">
+                                    <div className="mode-card-title">Random</div>
+                                    <div className="mode-card-desc">Auto-generated boards, numbers drawn every 4s</div>
+                                </div>
+                                <div className="mode-card-check">{gameMode === 'random' ? '✓' : ''}</div>
+                            </div>
+                            <div
+                                className={`mode-card ${gameMode === 'classic' ? 'active' : ''}`}
                                 onClick={() => setGameMode('classic')}
                                 id="btn-mode-classic"
                             >
-                                ✏️ Classic
+                                <div className="mode-card-icon"><i className="fa-solid fa-pencil"></i></div>
+                                <div className="mode-card-content">
+                                    <div className="mode-card-title">Classic</div>
+                                    <div className="mode-card-desc">Place your own numbers, take turns calling</div>
+                                </div>
+                                <div className="mode-card-check">{gameMode === 'classic' ? '✓' : ''}</div>
+                            </div>
+                        </div>
+
+                        {/* Size Chips */}
+                        <div className="size-picker">
+                            <label className="size-picker-label">Board Size</label>
+                            <div className="size-chips">
+                                {[5, 6, 7, 8, 9, 10].map(s => (
+                                    <button
+                                        key={s}
+                                        className={`size-chip ${boardSize === s ? 'active' : ''}`}
+                                        onClick={() => setBoardSize(s)}
+                                    >
+                                        {s}×{s}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="home-actions">
+                            <button className="btn btn-primary btn-action" onClick={() => setMode('create')} id="btn-create-mode">
+                                <span className="btn-action-icon"><i className="fa-solid fa-wand-magic-sparkles"></i></span>
+                                <span className="btn-action-text">
+                                    <strong>Create Room</strong>
+                                    <small>Host a new game</small>
+                                </span>
+                            </button>
+                            <button className="btn btn-outline btn-action" onClick={() => setMode('join')} id="btn-join-mode">
+                                <span className="btn-action-icon"><i className="fa-solid fa-link"></i></span>
+                                <span className="btn-action-text">
+                                    <strong>Join Room</strong>
+                                    <small>Enter a room code</small>
+                                </span>
                             </button>
                         </div>
-                        <div className="size-selector" style={{ marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                            <label style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Size:</label>
-                            <select
-                                value={boardSize}
-                                onChange={e => setBoardSize(Number(e.target.value))}
-                                className="input"
-                                style={{ padding: '6px 12px', width: 'auto', textAlign: 'center', color: 'black' }}
-                            >
-                                {[5, 6, 7, 8, 9, 10].map(s => (
-                                    <option key={s} value={s}>{s} × {s}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <p className="mode-description">
-                            {gameMode === 'random'
-                                ? 'Auto-generated boards with numbers drawn every 4 seconds.'
-                                : `Place numbers 1–${boardSize * boardSize} on your board. Take turns calling numbers.`}
-                        </p>
-                        <button className="btn btn-primary" onClick={() => setMode('create')} id="btn-create-mode">
-                            🎲 Create Room
-                        </button>
-                        <div className="divider">or</div>
-                        <button className="btn btn-outline" onClick={() => setMode('join')} id="btn-join-mode">
-                            🔗 Join Room
-                        </button>
                     </>
                 )}
 
                 {mode === 'create' && (
                     <>
                         <div className="mode-badge-display">
-                            Mode: <span className="mode-badge">{gameMode === 'classic' ? '✏️ Classic' : '🎲 Random'}</span>
+                            Mode: <span className="mode-badge">{gameMode === 'classic' ? <><i className="fa-solid fa-pencil"></i> Classic</> : <><i className="fa-solid fa-dice"></i> Random</>}</span>
+                            &nbsp;·&nbsp;
+                            <span className="mode-badge">{boardSize}×{boardSize}</span>
                         </div>
                         <button className="btn btn-primary" onClick={handleCreate} id="btn-create-room">
-                            ✨ Create New Game
+                            <i className="fa-solid fa-wand-magic-sparkles"></i> Create New Game
                         </button>
-                        <button className="btn btn-outline" onClick={() => setMode(null)}>← Back</button>
+                        <button className="btn btn-outline" onClick={() => setMode(null)}><i className="fa-solid fa-arrow-left"></i> Back</button>
                     </>
                 )}
 
                 {mode === 'join' && (
                     <>
-                        <input
-                            className="input"
-                            placeholder="Room code (e.g. AB3F)"
-                            value={roomCode}
-                            onChange={e => setRoomCode(e.target.value.toUpperCase())}
-                            maxLength={6}
-                            id="input-room-code"
-                        />
+                        <div className="input-group">
+                            <span className="input-icon"><i className="fa-solid fa-key"></i></span>
+                            <input
+                                className="input input-with-icon"
+                                placeholder="Room code (e.g. AB3F)"
+                                value={roomCode}
+                                onChange={e => setRoomCode(e.target.value.toUpperCase())}
+                                maxLength={6}
+                                id="input-room-code"
+                            />
+                        </div>
                         <button className="btn btn-success" onClick={handleJoin} id="btn-join-room">
-                            🚀 Join Game
+                            <i className="fa-solid fa-rocket"></i> Join Game
                         </button>
-                        <button className="btn btn-outline" onClick={() => setMode(null)}>← Back</button>
+                        <button className="btn btn-outline" onClick={() => setMode(null)}><i className="fa-solid fa-arrow-left"></i> Back</button>
                     </>
                 )}
 
@@ -265,7 +302,16 @@ function LobbyScreen({ room, playerName, onSetupBoard }) {
         });
     };
 
-    const allReady = room.players.every(p => p.boardReady);
+    const connectedPlayers = room.players.filter(p => p.connected);
+    const allReady = connectedPlayers.length > 0 &&
+        (room.mode !== 'classic' || connectedPlayers.every(p => p.boardReady));
+
+    const handleKick = (playerName) => {
+        if (!window.confirm(`Remove ${playerName} from the room?`)) return;
+        socket.emit('kick-player', { roomCode: room.code, playerName }, (res) => {
+            if (!res.success) alert(res.message);
+        });
+    };
 
     return (
         <div className="lobby">
@@ -285,16 +331,33 @@ function LobbyScreen({ room, playerName, onSetupBoard }) {
                     </h3>
                     <ul className="player-list">
                         {room.players.map((p) => (
-                            <li className="player-item" key={p.id}>
+                            <li className={`player-item${!p.connected ? ' disconnected-player' : ''}`} key={p.name}>
                                 <div
                                     className="player-avatar"
-                                    style={{ backgroundColor: getAvatarColor(p.name) }}
+                                    style={{
+                                        backgroundColor: p.connected ? getAvatarColor(p.name) : '#374151',
+                                        opacity: p.connected ? 1 : 0.5
+                                    }}
                                 >
                                     {p.name[0].toUpperCase()}
                                 </div>
-                                <span>{p.name}</span>
+                                <span style={{ opacity: p.connected ? 1 : 0.5 }}>{p.name}</span>
                                 {p.id === room.host && <span className="host-badge">HOST</span>}
-                                {room.mode === 'classic' && (
+                                {!p.connected && (
+                                    <>
+                                        <span className="disconnected-badge">Reconnecting…</span>
+                                        {isHost && p.id !== socket.id && (
+                                            <button
+                                                className="kick-btn"
+                                                onClick={() => handleKick(p.name)}
+                                                title={`Remove ${p.name}`}
+                                            >
+                                                🗑️ Remove
+                                            </button>
+                                        )}
+                                    </>
+                                )}
+                                {p.connected && room.mode === 'classic' && (
                                     <span className={`ready-badge ${p.boardReady ? 'ready' : 'not-ready'}`}>
                                         {p.boardReady ? '✓ Ready' : '✗ Setting up'}
                                     </span>
@@ -492,14 +555,14 @@ function BoardSetupScreen({ room, onBoardReady }) {
 
 /* ── Random Game Screen ──────────────────────────────────── */
 
-function GameScreen({ room, board, drawnNumbers, currentNumber }) {
-    const [markedCells, setMarkedCells] = useState(new Set());
+function GameScreen({ room, board, drawnNumbers, currentNumber, initialMarked }) {
+    const [markedCells, setMarkedCells] = useState(() => {
+        const s = new Set(initialMarked || []);
+        s.add('FREE');
+        return s;
+    });
     const [bingoFeedback, setBingoFeedback] = useState(null);
     const feedbackTimer = useRef(null);
-
-    useEffect(() => {
-        setMarkedCells(prev => new Set(prev).add('FREE'));
-    }, []);
 
     const handleMark = useCallback((row, col) => {
         const val = board[row][col];
@@ -644,7 +707,7 @@ function ClassicGameScreen({ room, board, calledNumbers, currentNumber, turnPlay
             {/* Turn indicator */}
             <div className={`turn-banner ${isMyTurn ? 'my-turn' : ''}`}>
                 {isMyTurn
-                    ? "🎯 It's your turn! Call a number below."
+                    ? "🎯 Your turn! Tap a number on your board to call it."
                     : `⏳ ${turnPlayerName}'s turn to call…`}
             </div>
 
@@ -672,7 +735,7 @@ function ClassicGameScreen({ room, board, calledNumbers, currentNumber, turnPlay
                 </div>
             </div>
 
-            {/* Player's board */}
+            {/* Player's board - click to call */}
             {(() => {
                 const completedLines = [];
                 const isMarked = (val) => calledSet.has(val);
@@ -726,17 +789,21 @@ function ClassicGameScreen({ room, board, calledNumbers, currentNumber, turnPlay
 
                 return (
                     <div className="board-container">
+                        {callError && <div className="error-msg call-error-toast">{callError}</div>}
                         <div className="board-grid-wrapper">
                             <div className="board-grid" style={{ gridTemplateColumns: `repeat(${size}, 1fr)` }}>
                                 {board.map((row, r) =>
                                     row.map((val, c) => {
                                         const isCalled = calledSet.has(val);
+                                        const isCallable = isMyTurn && !isCalled;
                                         return (
                                             <div
                                                 key={`${r}-${c}`}
-                                                className={`board-cell${isCalled ? ' marked' : ''}`}
+                                                className={`board-cell${isCalled ? ' marked' : ''}${isCallable ? ' my-turn-cell' : ''}`}
                                                 id={`classic-cell-${r}-${c}`}
                                                 style={{ fontSize: size >= 8 ? '0.85rem' : size >= 6 ? '1rem' : undefined }}
+                                                onClick={() => isCallable && handleCallNumber(val)}
+                                                title={isCallable ? `Call ${val}` : ''}
                                             >
                                                 {val}
                                             </div>
@@ -770,25 +837,7 @@ function ClassicGameScreen({ room, board, calledNumbers, currentNumber, turnPlay
                 );
             })()}
 
-            {/* Number pad for calling */}
-            <div className="number-pad-section">
-                <h3>Call a Number</h3>
-                <div className="number-pad" style={{ gridTemplateColumns: `repeat(${board.length}, 1fr)` }}>
-                    {Array.from({ length: board.length * board.length }, (_, i) => i + 1).map(num => (
-                        <button
-                            key={num}
-                            className={`num-btn${calledSet.has(num) ? ' called' : ''}${!isMyTurn ? ' disabled' : ''}`}
-                            onClick={() => handleCallNumber(num)}
-                            disabled={calledSet.has(num) || !isMyTurn}
-                            id={`num-btn-${num}`}
-                            style={{ fontSize: board.length >= 8 ? '0.75rem' : board.length >= 6 ? '0.9rem' : undefined }}
-                        >
-                            {num}
-                        </button>
-                    ))}
-                </div>
-                {callError && <div className="error-msg">{callError}</div>}
-            </div>
+
 
             {/* Called history */}
             <div className="drawn-numbers">
@@ -858,6 +907,7 @@ export default function App() {
     const [winner, setWinner] = useState(null);
     const [error, setError] = useState('');
     const [savedSession, setSavedSession] = useState(null);
+    const [restoredMarked, setRestoredMarked] = useState([]);
 
     const handleJoinRoom = (code, name, mode) => {
         setPlayerName(name);
@@ -902,12 +952,13 @@ export default function App() {
                 setError(res.message);
                 return;
             }
-            const { room: roomData, board: boardData } = res;
+            const { room: roomData, board: boardData, marked: markedData } = res;
             setRoom(roomData);
             setPlayerName(playerName);
             setGameMode(roomData.mode);
             setSavedSession(null);
             if (boardData) setBoard(boardData);
+            if (markedData) setRestoredMarked(markedData);
             if (roomData.status === 'waiting') {
                 setScreen('lobby');
             } else if (roomData.status === 'playing' || roomData.status === 'paused') {
@@ -978,6 +1029,16 @@ export default function App() {
             setWinner(data.winner);
         });
 
+        socket.on('force-kicked', ({ roomCode }) => {
+            // Clear saved session so rejoin prompt doesn't appear
+            localStorage.removeItem('bingo_session');
+            setSavedSession(null);
+            setRoom(null);
+            setBoard(null);
+            setScreen('home');
+            setError(`You were removed from room ${roomCode}.`);
+        });
+
         return () => {
             socket.off('room-update');
             socket.off('your-board');
@@ -985,6 +1046,7 @@ export default function App() {
             socket.off('classic-number-called');
             socket.off('turn-update');
             socket.off('game-over');
+            socket.off('force-kicked');
         };
     }, [screen]);
 
@@ -1021,6 +1083,7 @@ export default function App() {
                     board={board}
                     drawnNumbers={drawnNumbers}
                     currentNumber={currentNumber}
+                    initialMarked={restoredMarked}
                 />
             )}
             {screen === 'classicGame' && board && room && (

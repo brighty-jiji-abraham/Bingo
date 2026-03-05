@@ -1,73 +1,155 @@
 /**
  * Author: Brighy Jiji Abraham
  */
-// gameLogic.js
 
-// Generate standard US Bingo board
-// B: 1-15, I: 16-30, N: 31-45, G: 46-60, O: 61-75
-const generateBoard = () => {
-    const generateColumn = (min, max, count) => {
-        const numbers = new Set();
-        while (numbers.size < count) {
-            numbers.add(Math.floor(Math.random() * (max - min + 1)) + min);
+// ─── Board Generation ────────────────────────────────────────
+
+/**
+ * Generate a random Bingo board of the given size.
+ * Each column draws from a pool of 15 numbers (BINGO convention).
+ * Center cell is FREE on odd-sized boards.
+ */
+function generateBoard(size) {
+    const board = [];
+    for (let col = 0; col < size; col++) {
+        const min = col * 15 + 1;
+        const max = (col + 1) * 15;
+        const pool = [];
+        for (let n = min; n <= max; n++) pool.push(n);
+        // Fisher-Yates shuffle
+        for (let i = pool.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [pool[i], pool[j]] = [pool[j], pool[i]];
         }
-        return Array.from(numbers);
-    };
+        board.push(pool.slice(0, size));
+    }
+    // Transpose so board[row][col]
+    const transposed = [];
+    for (let r = 0; r < size; r++) {
+        transposed.push([]);
+        for (let c = 0; c < size; c++) {
+            transposed[r].push(board[c][r]);
+        }
+    }
+    // Center is FREE only on odd sizes
+    if (size % 2 !== 0) {
+        const center = Math.floor(size / 2);
+        transposed[center][center] = 'FREE';
+    }
+    return transposed;
+}
 
-    const B = generateColumn(1, 15, 5);
-    const I = generateColumn(16, 30, 5);
-    const N = generateColumn(31, 45, 5); // 5th will be skipped/replaced with FREE
-    const G = generateColumn(46, 60, 5);
-    const O = generateColumn(61, 75, 5);
+/**
+ * Generate a shuffled number pool for random mode draws.
+ * Pool contains numbers 1 to size*15.
+ */
+function generateNumberPool(size) {
+    const pool = [];
+    const maxNum = size * 15;
+    for (let i = 1; i <= maxNum; i++) pool.push(i);
+    for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    return pool;
+}
 
-    N[2] = 'FREE'; // Center space is free
+// ─── Number Helpers ──────────────────────────────────────────
 
-    const board = [
-        [B[0], I[0], N[0], G[0], O[0]],
-        [B[1], I[1], N[1], G[1], O[1]],
-        [B[2], I[2], N[2], G[2], O[2]],
-        [B[3], I[3], N[3], G[3], O[3]],
-        [B[4], I[4], N[4], G[4], O[4]]
-    ];
-    return board;
-};
+/**
+ * Get the BINGO column letter for a drawn number.
+ */
+function getLetterForNumber(num) {
+    const letters = 'BINGOABCDEFGH';
+    const index = Math.floor((num - 1) / 15);
+    return letters[index] || '*';
+}
 
-// Check if player has bingo based on drawn numbers
-const checkBingo = (board, drawnNumbers) => {
-    const drawnSet = new Set(drawnNumbers);
-    drawnSet.add('FREE'); // Free space is always "drawn"
+// ─── Win Checking ────────────────────────────────────────────
 
-    const isMarked = (val) => drawnSet.has(val);
+/**
+ * Check win for random mode.
+ * Counts completed rows, columns, and diagonals.
+ * Requires >= 5 completed lines to win.
+ */
+function checkWin(board, marked) {
+    const size = board.length;
+    let completedLines = 0;
 
     // Check rows
-    for (let r = 0; r < 5; r++) {
-        if (board[r].every(isMarked)) return true;
-    }
-
-    // Check columns
-    for (let c = 0; c < 5; c++) {
-        let colWin = true;
-        for (let r = 0; r < 5; r++) {
-            if (!isMarked(board[r][c])) {
-                colWin = false;
-                break;
+    for (let r = 0; r < size; r++) {
+        let win = true;
+        for (let c = 0; c < size; c++) {
+            if (board[r][c] !== 'FREE' && !marked.includes(board[r][c])) {
+                win = false; break;
             }
         }
-        if (colWin) return true;
+        if (win) completedLines++;
     }
-
+    // Check columns
+    for (let c = 0; c < size; c++) {
+        let win = true;
+        for (let r = 0; r < size; r++) {
+            if (board[r][c] !== 'FREE' && !marked.includes(board[r][c])) {
+                win = false; break;
+            }
+        }
+        if (win) completedLines++;
+    }
     // Check diagonals
-    let diag1Win = true;
-    let diag2Win = true;
-    for (let i = 0; i < 5; i++) {
-        if (!isMarked(board[i][i])) diag1Win = false;
-        if (!isMarked(board[i][4 - i])) diag2Win = false;
+    let win1 = true, win2 = true;
+    for (let i = 0; i < size; i++) {
+        if (board[i][i] !== 'FREE' && !marked.includes(board[i][i])) win1 = false;
+        if (board[i][size - 1 - i] !== 'FREE' && !marked.includes(board[i][size - 1 - i])) win2 = false;
     }
+    if (win1) completedLines++;
+    if (win2) completedLines++;
 
-    return diag1Win || diag2Win;
-};
+    return completedLines >= 5;
+}
+
+/**
+ * Check win for classic mode.
+ * Uses called numbers (global) instead of per-player marked numbers.
+ * Requires >= 5 completed lines to win.
+ */
+function checkWinClassic(board, calledNumbers) {
+    const calledSet = new Set(calledNumbers);
+    const isMarked = (val) => calledSet.has(val);
+
+    let completedLines = 0;
+    const size = board.length;
+
+    // Count completed rows
+    for (let r = 0; r < size; r++) {
+        if (board[r].every(isMarked)) completedLines++;
+    }
+    // Count completed columns
+    for (let c = 0; c < size; c++) {
+        let complete = true;
+        for (let r = 0; r < size; r++) {
+            if (!isMarked(board[r][c])) { complete = false; break; }
+        }
+        if (complete) completedLines++;
+    }
+    // Count completed diagonals
+    let d1 = true, d2 = true;
+    for (let i = 0; i < size; i++) {
+        if (!isMarked(board[i][i])) d1 = false;
+        if (!isMarked(board[i][size - 1 - i])) d2 = false;
+    }
+    if (d1) completedLines++;
+    if (d2) completedLines++;
+
+    return completedLines >= 5;
+}
+
+// ─── Exports ─────────────────────────────────────────────────
 
 module.exports = {
     generateBoard,
-    checkBingo
+    generateNumberPool,
+    getLetterForNumber,
+    checkWin,
+    checkWinClassic
 };
