@@ -356,15 +356,55 @@ function BoardSetupScreen({ room, onBoardReady }) {
 
     const handleCellClick = (r, c) => {
         if (submitted) return;
-        if (nextNumber > maxNumber) return;
 
+        // If cell is already filled, allow removing it (undo)
+        if (board[r][c] !== null) {
+            const removedVal = board[r][c];
+            setBoard(prev => {
+                const next = prev.map(row => [...row]);
+                // Remove this cell's number and shift down any numbers placed after it
+                const removed = next[r][c];
+                next[r][c] = null;
+                // Decrement all numbers greater than the removed one
+                for (let ri = 0; ri < size; ri++) {
+                    for (let ci = 0; ci < size; ci++) {
+                        if (next[ri][ci] !== null && next[ri][ci] > removed) {
+                            next[ri][ci] = next[ri][ci] - 1;
+                        }
+                    }
+                }
+                return next;
+            });
+            setNextNumber(prev => prev - 1);
+            return;
+        }
+
+        // Place number on empty cell
+        if (nextNumber > maxNumber) return;
         setBoard(prev => {
             const next = prev.map(row => [...row]);
-            if (next[r][c] !== null) return prev; // already filled
             next[r][c] = nextNumber;
             return next;
         });
         setNextNumber(prev => prev + 1);
+    };
+
+    const handleUndo = () => {
+        if (nextNumber <= 1) return;
+        const lastPlaced = nextNumber - 1;
+        setBoard(prev => {
+            const next = prev.map(row => [...row]);
+            for (let ri = 0; ri < size; ri++) {
+                for (let ci = 0; ci < size; ci++) {
+                    if (next[ri][ci] === lastPlaced) {
+                        next[ri][ci] = null;
+                        return next;
+                    }
+                }
+            }
+            return prev;
+        });
+        setNextNumber(prev => prev - 1);
     };
 
     const handleClear = () => {
@@ -395,7 +435,7 @@ function BoardSetupScreen({ room, onBoardReady }) {
             <div className="board-setup-card glass">
                 <h2>Set Up Your Board</h2>
                 <p className="setup-instruction">
-                    Click cells to place numbers 1–{maxNumber} in your preferred order.
+                    Click cells to place numbers 1–{maxNumber}. Click a placed number to remove it.
                 </p>
 
                 {!submitted && (
@@ -427,6 +467,7 @@ function BoardSetupScreen({ room, onBoardReady }) {
                 {!submitted && (
                     <div className="setup-actions">
                         <button className="btn btn-outline" onClick={handleClear}>🗑️ Clear</button>
+                        <button className="btn btn-outline" onClick={handleUndo} disabled={nextNumber <= 1}>↩️ Undo</button>
                         <button
                             className="btn btn-success"
                             onClick={handleSubmit}
