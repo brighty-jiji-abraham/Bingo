@@ -3,6 +3,12 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import socket from './socket';
+import {
+    FaRotate, FaUser, FaDice, FaPencil, FaWandMagicSparkles, FaLink,
+    FaKey, FaRocket, FaArrowLeft, FaCheck, FaXmark, FaTableCells,
+    FaCircleCheck, FaGamepad, FaTrash, FaRotateLeft, FaRotateRight,
+    FaBullseye, FaHourglassHalf, FaTrophy, FaPause,
+} from 'react-icons/fa6';
 
 /* ── Helpers ──────────────────────────────────────────────── */
 
@@ -158,7 +164,7 @@ function HomeScreen({ onJoin, onError, error, savedSession, onRejoin, onDismissS
             {savedSession && (
                 <div className="rejoin-banner glass">
                     <div className="rejoin-banner-text">
-                        <i className="fa-solid fa-rotate"></i>
+                        <FaRotate />
                         <div>
                             <strong>Rejoin previous game?</strong>
                             <p>Room <span className="rejoin-code">{savedSession.roomCode}</span> as <em>{savedSession.playerName}</em></p>
@@ -173,7 +179,7 @@ function HomeScreen({ onJoin, onError, error, savedSession, onRejoin, onDismissS
 
             <div className="home-card glass">
                 <div className="input-group">
-                    <span className="input-icon"><i className="fa-solid fa-user"></i></span>
+                    <span className="input-icon"><FaUser /></span>
                     <input
                         className="input input-with-icon"
                         placeholder="Your name"
@@ -193,7 +199,7 @@ function HomeScreen({ onJoin, onError, error, savedSession, onRejoin, onDismissS
                                 onClick={() => setGameMode('random')}
                                 id="btn-mode-random"
                             >
-                                <div className="mode-card-icon"><i className="fa-solid fa-dice"></i></div>
+                                <div className="mode-card-icon"><FaDice /></div>
                                 <div className="mode-card-content">
                                     <div className="mode-card-title">Random</div>
                                     <div className="mode-card-desc">Auto-generated boards, numbers drawn every 4s</div>
@@ -205,7 +211,7 @@ function HomeScreen({ onJoin, onError, error, savedSession, onRejoin, onDismissS
                                 onClick={() => setGameMode('classic')}
                                 id="btn-mode-classic"
                             >
-                                <div className="mode-card-icon"><i className="fa-solid fa-pencil"></i></div>
+                                <div className="mode-card-icon"><FaPencil /></div>
                                 <div className="mode-card-content">
                                     <div className="mode-card-title">Classic</div>
                                     <div className="mode-card-desc">Place your own numbers, take turns calling</div>
@@ -233,14 +239,14 @@ function HomeScreen({ onJoin, onError, error, savedSession, onRejoin, onDismissS
                         {/* Action Buttons */}
                         <div className="home-actions">
                             <button className="btn btn-primary btn-action" onClick={() => setMode('create')} id="btn-create-mode">
-                                <span className="btn-action-icon"><i className="fa-solid fa-wand-magic-sparkles"></i></span>
+                                <span className="btn-action-icon"><FaWandMagicSparkles /></span>
                                 <span className="btn-action-text">
                                     <strong>Create Room</strong>
                                     <small>Host a new game</small>
                                 </span>
                             </button>
                             <button className="btn btn-outline btn-action" onClick={() => setMode('join')} id="btn-join-mode">
-                                <span className="btn-action-icon"><i className="fa-solid fa-link"></i></span>
+                                <span className="btn-action-icon"><FaLink /></span>
                                 <span className="btn-action-text">
                                     <strong>Join Room</strong>
                                     <small>Enter a room code</small>
@@ -253,21 +259,21 @@ function HomeScreen({ onJoin, onError, error, savedSession, onRejoin, onDismissS
                 {mode === 'create' && (
                     <>
                         <div className="mode-badge-display">
-                            Mode: <span className="mode-badge">{gameMode === 'classic' ? <><i className="fa-solid fa-pencil"></i> Classic</> : <><i className="fa-solid fa-dice"></i> Random</>}</span>
+                            Mode: <span className="mode-badge">{gameMode === 'classic' ? <><FaPencil /> Classic</> : <><FaDice /> Random</>}</span>
                             &nbsp;·&nbsp;
                             <span className="mode-badge">{boardSize}×{boardSize}</span>
                         </div>
                         <button className="btn btn-primary" onClick={handleCreate} id="btn-create-room">
-                            <i className="fa-solid fa-wand-magic-sparkles"></i> Create New Game
+                            <FaWandMagicSparkles /> Create New Game
                         </button>
-                        <button className="btn btn-outline" onClick={() => setMode(null)}><i className="fa-solid fa-arrow-left"></i> Back</button>
+                        <button className="btn btn-outline" onClick={() => setMode(null)}><FaArrowLeft /> Back</button>
                     </>
                 )}
 
                 {mode === 'join' && (
                     <>
                         <div className="input-group">
-                            <span className="input-icon"><i className="fa-solid fa-key"></i></span>
+                            <span className="input-icon"><FaKey /></span>
                             <input
                                 className="input input-with-icon"
                                 placeholder="Room code (e.g. AB3F)"
@@ -278,9 +284,9 @@ function HomeScreen({ onJoin, onError, error, savedSession, onRejoin, onDismissS
                             />
                         </div>
                         <button className="btn btn-success" onClick={handleJoin} id="btn-join-room">
-                            <i className="fa-solid fa-rocket"></i> Join Game
+                            <FaRocket /> Join Game
                         </button>
-                        <button className="btn btn-outline" onClick={() => setMode(null)}><i className="fa-solid fa-arrow-left"></i> Back</button>
+                        <button className="btn btn-outline" onClick={() => setMode(null)}><FaArrowLeft /> Back</button>
                     </>
                 )}
 
@@ -352,14 +358,14 @@ function LobbyScreen({ room, playerName, onSetupBoard }) {
                                                 onClick={() => handleKick(p.name)}
                                                 title={`Remove ${p.name}`}
                                             >
-                                                <i className="fa-solid fa-trash"></i> Remove
+                                                <FaTrash /> Remove
                                             </button>
                                         )}
                                     </>
                                 )}
                                 {p.connected && room.mode === 'classic' && (
                                     <span className={`ready-badge ${p.boardReady ? 'ready' : 'not-ready'}`}>
-                                        {p.boardReady ? <><i className="fa-solid fa-check"></i> Ready</> : <><i className="fa-solid fa-xmark"></i> Setting up</>}
+                                        {p.boardReady ? <><FaCheck /> Ready</> : <><FaXmark /> Setting up</>}
                                     </span>
                                 )}
                             </li>
@@ -374,13 +380,13 @@ function LobbyScreen({ room, playerName, onSetupBoard }) {
                         onClick={onSetupBoard}
                         id="btn-setup-board"
                     >
-                        <i className="fa-solid fa-table-cells"></i> Set Up Your Board
+                        <FaTableCells /> Set Up Your Board
                     </button>
                 )}
 
                 {room.mode === 'classic' && me && me.boardReady && (
                     <div className="setup-submitted">
-                        <i className="fa-solid fa-circle-check" style={{ color: 'var(--success)', marginRight: '8px' }}></i>
+                        <FaCircleCheck style={{ color: 'var(--success)', marginRight: '8px' }} />
                         Your board is ready!
                     </div>
                 )}
@@ -396,7 +402,7 @@ function LobbyScreen({ room, playerName, onSetupBoard }) {
                             ? 'Waiting for players…'
                             : room.mode === 'classic' && !allReady
                                 ? 'Waiting for boards…'
-                                : <><i className="fa-solid fa-gamepad"></i> Start Game</>}
+                                : <><FaGamepad /> Start Game</>}
                     </button>
                 ) : (
                     <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
@@ -530,21 +536,21 @@ function BoardSetupScreen({ room, onBoardReady }) {
 
                 {!submitted && (
                     <div className="setup-actions">
-                        <button className="btn btn-outline" onClick={handleClear}><i className="fa-solid fa-trash"></i> Clear</button>
-                        <button className="btn btn-outline" onClick={handleUndo} disabled={nextNumber <= 1}><i className="fa-solid fa-rotate-left"></i> Undo</button>
+                        <button className="btn btn-outline" onClick={handleClear}><FaTrash /> Clear</button>
+                        <button className="btn btn-outline" onClick={handleUndo} disabled={nextNumber <= 1}><FaRotateLeft /> Undo</button>
                         <button
                             className="btn btn-success"
                             onClick={handleSubmit}
                             disabled={nextNumber <= maxNumber}
                         >
-                            <i className="fa-solid fa-check"></i> Ready
+                            <FaCheck /> Ready
                         </button>
                     </div>
                 )}
 
                 {submitted && (
                     <div className="setup-submitted">
-                        <i className="fa-solid fa-circle-check" style={{ color: 'var(--success)', marginRight: '8px' }}></i>
+                        <FaCircleCheck style={{ color: 'var(--success)', marginRight: '8px' }} />
                         Board submitted! Waiting for other players…<span className="waiting-dots"></span>
                     </div>
                 )}
@@ -709,8 +715,8 @@ function ClassicGameScreen({ room, board, calledNumbers, currentNumber, turnPlay
             {/* Turn indicator */}
             <div className={`turn-banner ${isMyTurn ? 'my-turn' : ''}`}>
                 {isMyTurn
-                    ? <><i className="fa-solid fa-bullseye"></i> Your turn! Tap a number on your board to call it.</>
-                    : <><i className="fa-solid fa-hourglass-half"></i> {turnPlayerName}'s turn to call…</>}
+                    ? <><FaBullseye /> Your turn! Tap a number on your board to call it.</>
+                    : <><FaHourglassHalf /> {turnPlayerName}'s turn to call…</>}
             </div>
 
             <div className="game-header">
@@ -866,11 +872,11 @@ function WinnerOverlay({ winner, onPlayAgain }) {
         <div className="winner-overlay">
             <Confetti />
             <div className="winner-card glass">
-                <div className="winner-emoji"><i className="fa-solid fa-trophy"></i></div>
+                <div className="winner-emoji"><FaTrophy /></div>
                 <div className="winner-title">BINGO!</div>
                 <div className="winner-name">{winner} wins the game!</div>
                 <button className="btn btn-primary" onClick={onPlayAgain} id="btn-play-again">
-                    <i className="fa-solid fa-rotate-right"></i> Play Again
+                    <FaRotateRight /> Play Again
                 </button>
             </div>
         </div>
@@ -883,7 +889,7 @@ function PausedOverlay() {
     return (
         <div className="paused-overlay">
             <div className="paused-card glass">
-                <div className="paused-icon"><i className="fa-solid fa-pause"></i></div>
+                <div className="paused-icon"><FaPause /></div>
                 <div className="paused-title">Game Paused</div>
                 <div className="paused-text">Waiting for a player to reconnect...</div>
             </div>
